@@ -7,6 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        'microsoft-blue': '#0078d4',
         microsoft: {
           blue: '#0078d4',
           lightblue: '#40e0d0',

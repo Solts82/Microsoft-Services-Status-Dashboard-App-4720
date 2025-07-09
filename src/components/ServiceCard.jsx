@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import AlertItem from './AlertItem';
+import { Link } from 'react-router-dom';
 
-const { FiCheckCircle, FiAlertCircle, FiXCircle, FiClock } = FiIcons;
+const { FiCheckCircle, FiAlertCircle, FiXCircle, FiClock, FiMessageSquare } = FiIcons;
 
 const ServiceCard = ({ service, onAlertClick }) => {
   const getStatusIcon = (status) => {
@@ -57,7 +58,6 @@ const ServiceCard = ({ service, onAlertClick }) => {
               </div>
             </div>
           </div>
-          
           <div className={`p-2 rounded-lg ${statusInfo.bg}`}>
             <SafeIcon icon={statusInfo.icon} className={`text-xl ${statusInfo.color}`} />
           </div>
@@ -69,13 +69,16 @@ const ServiceCard = ({ service, onAlertClick }) => {
               <h4 className="text-sm font-medium text-gray-700">
                 Active Alerts ({service.alerts.length})
               </h4>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">View discussions</span>
+                <SafeIcon icon={FiMessageSquare} className="text-gray-400 text-sm" />
+              </div>
             </div>
-            
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {service.alerts.map((alert) => (
-                <AlertItem 
-                  key={alert.id} 
-                  alert={alert} 
+                <AlertItem
+                  key={alert.id}
+                  alert={alert}
                   onClick={() => onAlertClick(alert)}
                 />
               ))}

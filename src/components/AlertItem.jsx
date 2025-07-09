@@ -65,7 +65,6 @@ const AlertItem = ({ alert, onClick }) => {
     <motion.div
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      onClick={onClick}
       className={`p-4 rounded-lg border cursor-pointer transition-all alert-item ${severityConfig.bg} ${severityConfig.border} hover:shadow-md`}
     >
       <div className="flex items-start gap-3">
@@ -77,9 +76,23 @@ const AlertItem = ({ alert, onClick }) => {
             <h5 className="text-sm font-medium text-gray-900 line-clamp-2">
               {alert.title}
             </h5>
-            <SafeIcon icon={FiChevronRight} className="text-gray-400 text-sm flex-shrink-0" />
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/alert/${alert.id}/comments`}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors text-xs font-medium"
+              >
+                <SafeIcon icon={FiMessageSquare} className="text-xs" />
+                <span>Comments</span>
+              </Link>
+              <button
+                onClick={onClick}
+                className="p-1 hover:bg-white/70 rounded transition-colors"
+              >
+                <SafeIcon icon={FiChevronRight} className="text-gray-400 text-sm" />
+              </button>
+            </div>
           </div>
-          
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className={`px-2 py-1 text-xs font-medium rounded-full ${severityConfig.badge}`}>
               {alert.severity.toUpperCase()}
@@ -88,25 +101,13 @@ const AlertItem = ({ alert, onClick }) => {
               {statusConfig.label}
             </span>
           </div>
-          
           <p className="text-xs text-gray-600 line-clamp-2 mb-2">
             {alert.impact}
           </p>
-          
           <div className="flex items-center justify-between text-xs text-gray-500">
             <span>
               Started {formatDistanceToNow(alert.startTime)} ago
             </span>
-            
-            <Link
-              to={`/alert/${alert.id}/comments`}
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 px-2 py-1 bg-white/70 rounded hover:bg-white transition-colors"
-            >
-              <SafeIcon icon={FiMessageSquare} className="text-gray-500" />
-              <span>Comments</span>
-            </Link>
-            
             {alert.region && (
               <span className="px-2 py-1 bg-gray-100 rounded">
                 {alert.region}

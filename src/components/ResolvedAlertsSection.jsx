@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { formatDistanceToNow, format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
-const { FiCheckCircle, FiClock, FiChevronDown, FiChevronUp, FiInfo, FiAlertTriangle } = FiIcons;
+const { FiCheckCircle, FiClock, FiChevronDown, FiChevronUp, FiInfo, FiAlertTriangle, FiMessageSquare } = FiIcons;
 
 const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -95,10 +96,7 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
             <span className="text-sm font-medium text-gray-700">
               {isExpanded ? 'Hide' : 'Show'} Details
             </span>
-            <SafeIcon 
-              icon={isExpanded ? FiChevronUp : FiChevronDown} 
-              className="text-gray-500"
-            />
+            <SafeIcon icon={isExpanded ? FiChevronUp : FiChevronDown} className="text-gray-500" />
           </motion.button>
         </div>
       </div>
@@ -116,15 +114,14 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
               {displayAlerts.map((alert, index) => {
                 const severityConfig = getSeverityConfig(alert.severity);
                 const resolutionTime = getResolutionTime(alert.startTime, alert.resolvedTime);
-                
+
                 return (
                   <motion.div
                     key={alert.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.1 }}
-                    onClick={() => onAlertClick(alert)}
-                    className="p-4 bg-green-50 border border-green-200 rounded-lg cursor-pointer hover:bg-green-100 transition-colors group"
+                    className="p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors group"
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 mt-0.5">
@@ -132,20 +129,28 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <h4 className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-gray-700">
+                          <h4 
+                            className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-gray-700 cursor-pointer"
+                            onClick={() => onAlertClick(alert)}
+                          >
                             {alert.title}
                           </h4>
                           <div className="flex items-center gap-2">
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${severityConfig.badge}`}>
                               {alert.severity.toUpperCase()}
                             </span>
+                            <Link
+                              to={`/alert/${alert.id}/comments`}
+                              className="flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors text-xs font-medium"
+                            >
+                              <SafeIcon icon={FiMessageSquare} className="text-xs" />
+                              <span>Comments</span>
+                            </Link>
                           </div>
                         </div>
-                        
                         <p className="text-xs text-gray-600 line-clamp-2 mb-3">
                           {alert.impact}
                         </p>
-                        
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                           <div>
                             <span className="text-gray-500 block">Resolved</span>
@@ -174,7 +179,6 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                             </div>
                           )}
                         </div>
-                        
                         {alert.resolutionSummary && (
                           <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
                             <h5 className="text-xs font-semibold text-gray-900 mb-1">Resolution Summary</h5>
@@ -186,7 +190,7 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                   </motion.div>
                 );
               })}
-              
+
               {resolvedAlerts.length > 3 && (
                 <div className="text-center pt-4">
                   <motion.button
