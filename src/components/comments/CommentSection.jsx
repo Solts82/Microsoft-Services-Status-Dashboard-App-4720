@@ -28,17 +28,17 @@ const CommentSection = ({ alert, user }) => {
     try {
       const { data, error } = await getComments(alert.id);
       if (error) throw error;
-      
+
       // Organize comments into a tree structure
       const commentMap = {};
       const rootComments = [];
-      
+
       // First pass: create map of all comments
       data.forEach(comment => {
         comment.replies = [];
         commentMap[comment.id] = comment;
       });
-      
+
       // Second pass: organize into tree
       data.forEach(comment => {
         if (comment.parent_id) {
@@ -52,7 +52,7 @@ const CommentSection = ({ alert, user }) => {
           rootComments.push(comment);
         }
       });
-      
+
       setComments(rootComments);
     } catch (err) {
       console.error('Error loading comments:', err);
@@ -64,15 +64,14 @@ const CommentSection = ({ alert, user }) => {
 
   const handleSubmitComment = async (e) => {
     e.preventDefault();
-    
     if (!newComment.trim()) return;
-    
+
     // If not logged in, show auth modal
     if (!user && !isAnonymous) {
       setShowAuthModal(true);
       return;
     }
-    
+
     try {
       await addComment(
         alert.id,
@@ -81,7 +80,6 @@ const CommentSection = ({ alert, user }) => {
         user?.email?.split('@')[0] || 'Anonymous',
         !user || isAnonymous
       );
-      
       setNewComment('');
       // Refresh comments
       setRefreshKey(prev => prev + 1);
@@ -97,7 +95,7 @@ const CommentSection = ({ alert, user }) => {
       setShowAuthModal(true);
       return false;
     }
-    
+
     try {
       await addCommentReply(
         parentId,
@@ -107,7 +105,6 @@ const CommentSection = ({ alert, user }) => {
         user?.email?.split('@')[0] || 'Anonymous',
         !user || isAnonymous
       );
-      
       // Refresh comments
       setRefreshKey(prev => prev + 1);
       return true;
@@ -124,7 +121,7 @@ const CommentSection = ({ alert, user }) => {
       setShowAuthModal(true);
       return;
     }
-    
+
     try {
       await voteComment(commentId, user.id, voteType);
       // Refresh comments
@@ -152,7 +149,6 @@ const CommentSection = ({ alert, user }) => {
               </p>
             </div>
           </div>
-          
           <button
             onClick={() => setRefreshKey(prev => prev + 1)}
             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -162,7 +158,7 @@ const CommentSection = ({ alert, user }) => {
           </button>
         </div>
       </div>
-      
+
       <div className="p-6">
         {/* Comment form */}
         <form onSubmit={handleSubmitComment} className="mb-8">
@@ -188,7 +184,6 @@ const CommentSection = ({ alert, user }) => {
                   </label>
                 )}
               </div>
-              
               <div className="flex items-center gap-3">
                 {!user && !isAnonymous && (
                   <button
@@ -199,7 +194,6 @@ const CommentSection = ({ alert, user }) => {
                     Sign in to comment
                   </button>
                 )}
-                
                 <button
                   type="submit"
                   disabled={!newComment.trim()}
@@ -211,7 +205,7 @@ const CommentSection = ({ alert, user }) => {
             </div>
           </div>
         </form>
-        
+
         {/* Comments list */}
         {loading ? (
           <div className="flex justify-center py-8">
@@ -239,7 +233,7 @@ const CommentSection = ({ alert, user }) => {
           </div>
         )}
       </div>
-      
+
       {/* Auth modal */}
       <AuthModal
         isOpen={showAuthModal}

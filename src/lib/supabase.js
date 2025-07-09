@@ -60,7 +60,7 @@ export const getAlertSubscriptions = async (userId) => {
   return { data: { regions: ['global'] }, error: null };
 };
 
-// Comments helpers
+// Comments helpers - NO MOCK DATA
 export const addComment = async (alertId, content, userId, username, isAnonymous) => {
   console.log('Add comment:', { alertId, content, userId, username, isAnonymous });
   return { data: {}, error: null };
@@ -68,40 +68,8 @@ export const addComment = async (alertId, content, userId, username, isAnonymous
 
 export const getComments = async (alertId) => {
   console.log('Get comments for alert:', alertId);
-  // Return mock comments data
-  const mockComments = [
-    {
-      id: 'c1',
-      alert_id: alertId,
-      content: 'This is affecting our production environment. Any ETA on resolution?',
-      user_id: 'u1',
-      username: 'JohnDoe',
-      is_anonymous: false,
-      created_at: new Date().toISOString(),
-      parent_id: null
-    },
-    {
-      id: 'c2',
-      alert_id: alertId,
-      content: 'We are experiencing the same issue in the EU region.',
-      user_id: null,
-      username: 'Anonymous',
-      is_anonymous: true,
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-      parent_id: null
-    },
-    {
-      id: 'c3',
-      alert_id: alertId,
-      content: 'Our team is also investigating this from our side.',
-      user_id: 'u3',
-      username: 'SupportTeam',
-      is_anonymous: false,
-      created_at: new Date(Date.now() - 7200000).toISOString(),
-      parent_id: 'c1'
-    }
-  ];
-  return { data: mockComments, error: null };
+  // Return empty array - no mock comments
+  return { data: [], error: null };
 };
 
 export const addCommentReply = async (parentId, alertId, content, userId, username, isAnonymous) => {
@@ -127,11 +95,5 @@ export const updateUserProfile = async (userId, profileData) => {
 
 export const getUserProfile = async (userId) => {
   console.log('Get user profile:', userId);
-  return { 
-    data: {
-      display_name: 'Demo User',
-      notification_email: 'demo@example.com'
-    }, 
-    error: null 
-  };
+  return { data: { display_name: 'Demo User', notification_email: 'demo@example.com' }, error: null };
 };
