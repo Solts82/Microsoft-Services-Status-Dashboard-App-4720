@@ -1,167 +1,137 @@
-import { createClient } from '@supabase/supabase-js';
+// Mock implementation for when Supabase isn't connected yet
+console.log('Supabase client loaded (demo mode)');
 
-// Project URL and anon key will be auto-injected during deployment
-const SUPABASE_URL = 'https://<PROJECT-ID>.supabase.co';
-const SUPABASE_ANON_KEY = '<ANON_KEY>';
-
-if (SUPABASE_URL === 'https://<PROJECT-ID>.supabase.co' || SUPABASE_ANON_KEY === '<ANON_KEY>') {
-  console.warn('Missing Supabase credentials. Using demo mode.');
-}
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+// This is a mock implementation for development
+export const supabase = {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true
-  }
-});
+    getUser: async () => ({ data: { user: null }, error: null }),
+    signOut: async () => ({ error: null }),
+    signInWithPassword: async () => ({ data: null, error: null }),
+    signUp: async () => ({ data: null, error: null })
+  },
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        single: async () => ({ data: null, error: null }),
+        order: () => ({ data: [], error: null })
+      }),
+      order: () => ({ data: [], error: null })
+    }),
+    insert: async () => ({ data: null, error: null }),
+    upsert: async () => ({ data: null, error: null }),
+    update: () => ({
+      eq: async () => ({ data: null, error: null })
+    }),
+    delete: () => ({
+      eq: async () => ({ error: null })
+    })
+  })
+};
 
 // Authentication helpers
 export const signUp = async (email, password) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-  return { data, error };
+  console.log('Sign up called with:', email);
+  return { data: {}, error: null };
 };
 
 export const signIn = async (email, password) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  return { data, error };
+  console.log('Sign in called with:', email);
+  return { data: {}, error: null };
 };
 
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  return { error };
+  console.log('Sign out called');
+  return { error: null };
 };
 
 export const getCurrentUser = async () => {
-  const { data, error } = await supabase.auth.getUser();
-  return { user: data?.user, error };
+  console.log('Get current user called');
+  return { user: null, error: null };
 };
 
 // Alerts subscription helpers
 export const subscribeToAlerts = async (userId, regions) => {
-  const { data, error } = await supabase
-    .from('alert_subscriptions')
-    .upsert({ 
-      user_id: userId,
-      regions: regions
-    });
-  return { data, error };
+  console.log('Subscribe to alerts:', userId, regions);
+  return { data: {}, error: null };
 };
 
 export const getAlertSubscriptions = async (userId) => {
-  const { data, error } = await supabase
-    .from('alert_subscriptions')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-  return { data, error };
+  console.log('Get alert subscriptions for:', userId);
+  return { data: { regions: ['global'] }, error: null };
 };
 
 // Comments helpers
 export const addComment = async (alertId, content, userId, username, isAnonymous) => {
-  const { data, error } = await supabase
-    .from('comments')
-    .insert([
-      { 
-        alert_id: alertId, 
-        content, 
-        user_id: userId || null,
-        username: isAnonymous ? 'Anonymous' : username,
-        is_anonymous: isAnonymous
-      }
-    ]);
-  return { data, error };
+  console.log('Add comment:', { alertId, content, userId, username, isAnonymous });
+  return { data: {}, error: null };
 };
 
 export const getComments = async (alertId) => {
-  const { data, error } = await supabase
-    .from('comments')
-    .select('*')
-    .eq('alert_id', alertId)
-    .order('created_at', { ascending: false });
-  return { data, error };
+  console.log('Get comments for alert:', alertId);
+  // Return mock comments data
+  const mockComments = [
+    {
+      id: 'c1',
+      alert_id: alertId,
+      content: 'This is affecting our production environment. Any ETA on resolution?',
+      user_id: 'u1',
+      username: 'JohnDoe',
+      is_anonymous: false,
+      created_at: new Date().toISOString(),
+      parent_id: null
+    },
+    {
+      id: 'c2',
+      alert_id: alertId,
+      content: 'We are experiencing the same issue in the EU region.',
+      user_id: null,
+      username: 'Anonymous',
+      is_anonymous: true,
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+      parent_id: null
+    },
+    {
+      id: 'c3',
+      alert_id: alertId,
+      content: 'Our team is also investigating this from our side.',
+      user_id: 'u3',
+      username: 'SupportTeam',
+      is_anonymous: false,
+      created_at: new Date(Date.now() - 7200000).toISOString(),
+      parent_id: 'c1'
+    }
+  ];
+  return { data: mockComments, error: null };
 };
 
 export const addCommentReply = async (parentId, alertId, content, userId, username, isAnonymous) => {
-  const { data, error } = await supabase
-    .from('comments')
-    .insert([
-      { 
-        parent_id: parentId,
-        alert_id: alertId, 
-        content, 
-        user_id: userId || null,
-        username: isAnonymous ? 'Anonymous' : username,
-        is_anonymous: isAnonymous
-      }
-    ]);
-  return { data, error };
+  console.log('Add comment reply:', { parentId, alertId, content, userId, username, isAnonymous });
+  return { data: {}, error: null };
 };
 
 export const voteComment = async (commentId, userId, voteType) => {
-  // Check if user already voted
-  const { data: existingVote } = await supabase
-    .from('comment_votes')
-    .select('*')
-    .eq('comment_id', commentId)
-    .eq('user_id', userId)
-    .single();
-  
-  if (existingVote) {
-    // Update existing vote
-    if (existingVote.vote_type === voteType) {
-      // Remove vote if clicking the same button
-      const { error } = await supabase
-        .from('comment_votes')
-        .delete()
-        .eq('id', existingVote.id);
-      return { error };
-    } else {
-      // Change vote type
-      const { error } = await supabase
-        .from('comment_votes')
-        .update({ vote_type: voteType })
-        .eq('id', existingVote.id);
-      return { error };
-    }
-  } else {
-    // Create new vote
-    const { error } = await supabase
-      .from('comment_votes')
-      .insert([{ comment_id: commentId, user_id: userId, vote_type: voteType }]);
-    return { error };
-  }
+  console.log('Vote on comment:', { commentId, userId, voteType });
+  return { error: null };
 };
 
 export const getCommentVotes = async (commentId) => {
-  const { data, error } = await supabase
-    .from('comment_votes')
-    .select('*')
-    .eq('comment_id', commentId);
-  return { data, error };
+  console.log('Get votes for comment:', commentId);
+  return { data: [], error: null };
 };
 
 // Profile management
 export const updateUserProfile = async (userId, profileData) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert({ 
-      id: userId, 
-      ...profileData 
-    });
-  return { data, error };
+  console.log('Update user profile:', { userId, profileData });
+  return { data: {}, error: null };
 };
 
 export const getUserProfile = async (userId) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  return { data, error };
+  console.log('Get user profile:', userId);
+  return { 
+    data: {
+      display_name: 'Demo User',
+      notification_email: 'demo@example.com'
+    }, 
+    error: null 
+  };
 };

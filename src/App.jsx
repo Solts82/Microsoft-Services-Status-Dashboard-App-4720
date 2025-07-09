@@ -10,27 +10,31 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const checkUser = async () => {
+      try {
+        // For demo purposes, we'll just simulate auth
+        // since Supabase isn't connected yet
+        console.log('Checking user auth state...');
+        setLoading(false);
+        
+        // If you have Supabase connected, uncomment this:
+        // const { user, error } = await getCurrentUser();
+        // if (user) {
+        //   setUser(user);
+        // }
+      } catch (err) {
+        console.error('Error checking user:', err);
+        setLoading(false);
+      }
+    };
+    
     checkUser();
   }, []);
 
-  const checkUser = async () => {
-    try {
-      const { user, error } = await getCurrentUser();
-      if (user) {
-        setUser(user);
-      }
-    } catch (err) {
-      console.error('Error checking user:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Wait until auth check is complete before rendering
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-microsoft-blue"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
