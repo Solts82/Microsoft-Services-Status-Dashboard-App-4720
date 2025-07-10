@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ServiceCard from './ServiceCard';
 import ResolvedAlertsSection from './ResolvedAlertsSection';
@@ -11,7 +11,7 @@ import { Link } from 'react-router-dom';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 
-const { FiMessageSquare, FiArrowRight } = FiIcons;
+const { FiMessageSquare, FiArrowRight, FiAlertTriangle } = FiIcons;
 
 const Dashboard = ({ user, onUserChange }) => {
   const [services, setServices] = useState([]);
@@ -20,116 +20,73 @@ const Dashboard = ({ user, onUserChange }) => {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadServiceHealth();
-    const interval = setInterval(loadServiceHealth, 300000); // Refresh every 5 minutes
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadServiceHealth = async () => {
+  // Memoize the fetch function to avoid unnecessary re-renders
+  const loadServiceHealth = useCallback(async (isUserInitiated = false) => {
     try {
+      if (isUserInitiated) {
+        setRefreshing(true);
+      }
       setError(null);
+      
+      console.log('Fetching Microsoft service health data...');
+      
       const data = await fetchServiceHealth();
-      setServices(data.services);
+      
+      // Log the results to help with debugging
+      console.log(`Received data: ${data.services.length} services, ${data.resolvedAlerts.length} resolved alerts`);
+      
+      let alertCount = 0;
+      data.services.forEach(service => {
+        alertCount += service.alerts?.length || 0;
+        console.log(`${service.name}: ${service.status}, ${service.alerts?.length || 0} alerts`);
+      });
+      
+      console.log(`Total active alerts: ${alertCount}`);
+      
+      setServices(data.services || []);
       setResolvedAlerts(data.resolvedAlerts || []);
       setLastUpdated(new Date());
     } catch (err) {
-      setError('Failed to load service health data. Using demo data.');
-      // Fallback to demo data
-      const demoData = getDemoData();
-      setServices(demoData.services);
-      setResolvedAlerts(demoData.resolvedAlerts);
-      setLastUpdated(new Date());
+      console.error('Error loading service health data:', err);
+      setError('Failed to load service health data. Please try again later.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadServiceHealth();
+    
+    // Set up refresh timer (every 2 minutes instead of 5 for more frequent updates)
+    const interval = setInterval(() => {
+      console.log('Auto-refreshing service health data...');
+      loadServiceHealth();
+    }, 120000);
+    
+    return () => clearInterval(interval);
+  }, [loadServiceHealth]);
+
+  // Manual refresh handler
+  const handleRefresh = () => {
+    loadServiceHealth(true);
   };
 
-  const getDemoData = () => ({
-    services: [
-      {
-        id: 'azure',
-        name: 'Microsoft Azure',
-        status: 'operational',
-        alerts: [
-          {
-            id: 'az-001',
-            title: 'Azure Virtual Machines - Performance Degradation',
-            severity: 'medium',
-            status: 'investigating',
-            impact: 'Virtual Machine instances may experience slower performance in West US 2 region',
-            startTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
-            lastUpdated: new Date(Date.now() - 30 * 60 * 1000),
-            affectedServices: ['Virtual Machines', 'App Service'],
-            region: 'West US 2'
-          }
-        ]
-      },
-      {
-        id: 'entra',
-        name: 'Microsoft Entra ID',
-        status: 'degraded',
-        alerts: [
-          {
-            id: 'entra-001',
-            title: 'Authentication Delays',
-            severity: 'high',
-            status: 'monitoring',
-            impact: 'Users may experience delays when signing in to applications',
-            startTime: new Date(Date.now() - 45 * 60 * 1000),
-            lastUpdated: new Date(Date.now() - 10 * 60 * 1000),
-            affectedServices: ['Single Sign-On', 'Multi-Factor Authentication'],
-            region: 'Global'
-          }
-        ]
-      },
-      {
-        id: 'microsoft365',
-        name: 'Microsoft 365',
-        status: 'operational',
-        alerts: []
-      }
-    ],
-    resolvedAlerts: [
-      {
-        id: 'resolved-001',
-        title: 'Exchange Online - Email Delivery Delays',
-        severity: 'medium',
-        status: 'resolved',
-        impact: 'Users experienced delays in email delivery of up to 15 minutes. All queued emails have been successfully delivered.',
-        startTime: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        resolvedTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        affectedServices: ['Exchange Online', 'Outlook Web App', 'Outlook Mobile'],
-        region: 'North America',
-        resolutionSummary: 'The issue was caused by a configuration change in our mail routing system. We have reverted the change and implemented additional monitoring to prevent similar issues.'
-      },
-      {
-        id: 'resolved-002',
-        title: 'Teams - Meeting Join Issues',
-        severity: 'high',
-        status: 'resolved',
-        impact: 'Some users were unable to join Microsoft Teams meetings and experienced connection failures.',
-        startTime: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        lastUpdated: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        resolvedTime: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        affectedServices: ['Microsoft Teams', 'Teams Mobile App'],
-        region: 'Europe',
-        resolutionSummary: 'A server capacity issue was identified and resolved by scaling up our infrastructure. All users can now join meetings normally.'
-      }
-    ]
-  });
-
-  const totalAlerts = services.reduce((sum, service) => sum + service.alerts.length, 0);
+  const totalAlerts = services.reduce((sum, service) => sum + (service.alerts?.length || 0), 0);
   const criticalAlerts = services.reduce(
-    (sum, service) => sum + service.alerts.filter(alert => alert.severity === 'high').length,
+    (sum, service) => sum + (service.alerts?.filter(alert => alert.severity === 'high')?.length || 0),
     0
   );
 
   // Get all alerts for the comments showcase
   const allAlerts = services.flatMap(service => 
-    service.alerts.map(alert => ({ ...alert, serviceName: service.name }))
+    (service.alerts || []).map(alert => ({
+      ...alert,
+      serviceName: service.name
+    }))
   );
 
   if (loading) {
@@ -138,12 +95,12 @@ const Dashboard = ({ user, onUserChange }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <Header
-        totalAlerts={totalAlerts}
-        criticalAlerts={criticalAlerts}
-        lastUpdated={lastUpdated}
-        onRefresh={loadServiceHealth}
-        loading={loading}
+      <Header 
+        totalAlerts={totalAlerts} 
+        criticalAlerts={criticalAlerts} 
+        lastUpdated={lastUpdated} 
+        onRefresh={handleRefresh} 
+        loading={refreshing}
         user={user}
       />
 
@@ -153,7 +110,10 @@ const Dashboard = ({ user, onUserChange }) => {
           animate={{ opacity: 1, y: 0 }}
           className="mx-4 mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
         >
-          <p className="text-yellow-800 text-sm">{error}</p>
+          <div className="flex items-center gap-3">
+            <SafeIcon icon={FiAlertTriangle} className="text-yellow-600" />
+            <p className="text-yellow-800 text-sm">{error}</p>
+          </div>
         </motion.div>
       )}
 
@@ -181,7 +141,7 @@ const Dashboard = ({ user, onUserChange }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {allAlerts.slice(0, 2).map((alert) => (
                 <div key={alert.id} className="bg-white rounded-lg p-4 border border-gray-200">
@@ -224,19 +184,13 @@ const Dashboard = ({ user, onUserChange }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <ServiceCard
-                service={service}
-                onAlertClick={setSelectedAlert}
-              />
+              <ServiceCard service={service} onAlertClick={setSelectedAlert} />
             </motion.div>
           ))}
         </motion.div>
 
         {/* Resolved Alerts Section */}
-        <ResolvedAlertsSection
-          resolvedAlerts={resolvedAlerts}
-          onAlertClick={setSelectedAlert}
-        />
+        <ResolvedAlertsSection resolvedAlerts={resolvedAlerts} onAlertClick={setSelectedAlert} />
 
         {/* All Systems Operational Message */}
         {totalAlerts === 0 && (
@@ -268,10 +222,7 @@ const Dashboard = ({ user, onUserChange }) => {
 
       <AnimatePresence>
         {selectedAlert && (
-          <AlertModal
-            alert={selectedAlert}
-            onClose={() => setSelectedAlert(null)}
-          />
+          <AlertModal alert={selectedAlert} onClose={() => setSelectedAlert(null)} />
         )}
       </AnimatePresence>
     </div>

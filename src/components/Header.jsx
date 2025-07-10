@@ -51,10 +51,12 @@ const Header = ({ totalAlerts, criticalAlerts, lastUpdated, onRefresh, loading, 
 
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="flex gap-4">
-              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
-                <SafeIcon icon={FiShield} className="text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">
-                  {totalAlerts} Active Alerts
+              <div className={`flex items-center gap-2 px-3 py-2 ${totalAlerts > 0 ? 'bg-blue-50' : 'bg-green-50'} rounded-lg`}>
+                <SafeIcon icon={FiShield} className={totalAlerts > 0 ? 'text-blue-600' : 'text-green-600'} />
+                <span className={`text-sm font-medium ${totalAlerts > 0 ? 'text-blue-800' : 'text-green-800'}`}>
+                  {totalAlerts > 0 
+                    ? `${totalAlerts} Active Alert${totalAlerts !== 1 ? 's' : ''}`
+                    : 'All Systems Operational'}
                 </span>
               </div>
               {criticalAlerts > 0 && (
@@ -73,7 +75,6 @@ const Header = ({ totalAlerts, criticalAlerts, lastUpdated, onRefresh, loading, 
                   Updated {formatDistanceToNow(lastUpdated)} ago
                 </span>
               )}
-
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -81,11 +82,13 @@ const Header = ({ totalAlerts, criticalAlerts, lastUpdated, onRefresh, loading, 
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 bg-microsoft-blue text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                <SafeIcon
-                  icon={FiRefreshCw}
-                  className={`text-sm ${loading ? 'animate-spin' : ''}`}
+                <SafeIcon 
+                  icon={FiRefreshCw} 
+                  className={`text-sm ${loading ? 'animate-spin' : ''}`} 
                 />
-                <span className="text-sm font-medium">Refresh</span>
+                <span className="text-sm font-medium">
+                  {loading ? 'Refreshing...' : 'Refresh'}
+                </span>
               </motion.button>
 
               {user ? (
@@ -127,7 +130,6 @@ const Header = ({ totalAlerts, criticalAlerts, lastUpdated, onRefresh, loading, 
         onClose={() => setShowAuthModal(false)}
         defaultMode={authMode}
       />
-
       {user && (
         <>
           <ProfileModal

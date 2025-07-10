@@ -69,10 +69,12 @@ const ServiceCard = ({ service, onAlertClick }) => {
               <h4 className="text-sm font-medium text-gray-700">
                 Active Alerts ({service.alerts.length})
               </h4>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">View discussions</span>
-                <SafeIcon icon={FiMessageSquare} className="text-gray-400 text-sm" />
-              </div>
+              {service.alerts.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">View discussions</span>
+                  <SafeIcon icon={FiMessageSquare} className="text-gray-400 text-sm" />
+                </div>
+              )}
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {service.alerts.map((alert) => (
