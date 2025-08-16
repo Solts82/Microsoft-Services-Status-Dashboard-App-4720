@@ -19,38 +19,34 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
 
   const getSeverityConfig = (severity) => {
     switch (severity) {
-      case 'high':
-        return {
-          icon: FiAlertTriangle,
-          color: 'text-red-600',
-          bg: 'bg-red-50',
-          border: 'border-red-200',
-          badge: 'bg-red-100 text-red-800'
-        };
-      case 'medium':
-        return {
-          icon: FiInfo,
-          color: 'text-yellow-600',
-          bg: 'bg-yellow-50',
-          border: 'border-yellow-200',
-          badge: 'bg-yellow-100 text-yellow-800'
-        };
-      case 'low':
-        return {
-          icon: FiInfo,
-          color: 'text-blue-600',
-          bg: 'bg-blue-50',
-          border: 'border-blue-200',
-          badge: 'bg-blue-100 text-blue-800'
-        };
-      default:
-        return {
-          icon: FiClock,
-          color: 'text-gray-600',
-          bg: 'bg-gray-50',
-          border: 'border-gray-200',
-          badge: 'bg-gray-100 text-gray-800'
-        };
+      case 'high': return {
+        icon: FiAlertTriangle,
+        color: 'text-red-600',
+        bg: 'bg-red-50',
+        border: 'border-red-200',
+        badge: 'bg-red-100 text-red-800'
+      };
+      case 'medium': return {
+        icon: FiInfo,
+        color: 'text-yellow-600',
+        bg: 'bg-yellow-50',
+        border: 'border-yellow-200',
+        badge: 'bg-yellow-100 text-yellow-800'
+      };
+      case 'low': return {
+        icon: FiInfo,
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
+        border: 'border-blue-200',
+        badge: 'bg-blue-100 text-blue-800'
+      };
+      default: return {
+        icon: FiClock,
+        color: 'text-gray-600',
+        bg: 'bg-gray-50',
+        border: 'border-gray-200',
+        badge: 'bg-gray-100 text-gray-800'
+      };
     }
   };
 
@@ -83,7 +79,7 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                 Recently Resolved Alerts
               </h3>
               <p className="text-sm text-gray-600">
-                {resolvedAlerts.length} alert{resolvedAlerts.length !== 1 ? 's' : ''} resolved in the last 24 hours
+                {resolvedAlerts.length} alert{resolvedAlerts.length !== 1 ? 's' : ''} resolved in the last 30 days
               </p>
             </div>
           </div>
@@ -114,7 +110,7 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
               {displayAlerts.map((alert, index) => {
                 const severityConfig = getSeverityConfig(alert.severity);
                 const resolutionTime = getResolutionTime(alert.startTime, alert.resolvedTime);
-
+                
                 return (
                   <motion.div
                     key={alert.id}
@@ -139,7 +135,7 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${severityConfig.badge}`}>
                               {alert.severity.toUpperCase()}
                             </span>
-                            <Link
+                            <Link 
                               to={`/alert/${alert.id}/comments`}
                               className="flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors text-xs font-medium"
                             >
@@ -148,9 +144,11 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                             </Link>
                           </div>
                         </div>
+                        
                         <p className="text-xs text-gray-600 line-clamp-2 mb-3">
                           {alert.impact}
                         </p>
+                        
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                           <div>
                             <span className="text-gray-500 block">Resolved</span>
@@ -179,6 +177,7 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                             </div>
                           )}
                         </div>
+                        
                         {alert.resolutionSummary && (
                           <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
                             <h5 className="text-xs font-semibold text-gray-900 mb-1">Resolution Summary</h5>
@@ -190,7 +189,7 @@ const ResolvedAlertsSection = ({ resolvedAlerts, onAlertClick }) => {
                   </motion.div>
                 );
               })}
-
+              
               {resolvedAlerts.length > 3 && (
                 <div className="text-center pt-4">
                   <motion.button
