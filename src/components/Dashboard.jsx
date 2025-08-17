@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React,{useState,useEffect,useCallback} from 'react';
+import {motion,AnimatePresence} from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import Header from './Header';
@@ -8,136 +8,106 @@ import AlertModal from './AlertModal';
 import ResolvedAlertsSection from './ResolvedAlertsSection';
 import MonitoringStatus from './MonitoringStatus';
 import LoadingSpinner from './LoadingSpinner';
-import { fetchServiceHealth, getMonitoringStatus, startRealTimeMonitoring } from '../services/microsoftApi';
-import { formatDistanceToNow } from 'date-fns';
+import {fetchServiceHealth,getMonitoringStatus,startRealTimeMonitoring} from '../services/microsoftApi';
+import {formatDistanceToNow} from 'date-fns';
 
-const { FiRefreshCw, FiAlertTriangle, FiWifi, FiWifiOff, FiDatabase, FiPlay, FiActivity } = FiIcons;
+const {FiRefreshCw,FiAlertTriangle,FiDatabase,FiPlay,FiActivity}=FiIcons;
 
-const Dashboard = ({ user, onUserChange }) => {
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedAlert, setSelectedAlert] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [resolvedAlerts, setResolvedAlerts] = useState([]);
-  const [monitoringStatus, setMonitoringStatus] = useState(null);
+const Dashboard=({user,onUserChange})=> {
+  const [services,setServices]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [selectedAlert,setSelectedAlert]=useState(null);
+  const [lastUpdated,setLastUpdated]=useState(null);
+  const [error,setError]=useState(null);
+  const [refreshing,setRefreshing]=useState(false);
+  const [connectionStatus,setConnectionStatus]=useState('connecting');
+  const [resolvedAlerts,setResolvedAlerts]=useState([]);
+  const [monitoringStatus,setMonitoringStatus]=useState(null);
 
-  const loadServiceHealth = useCallback(async () => {
+  const loadServiceHealth=useCallback(async ()=> {
     try {
       setRefreshing(true);
       setError(null);
       setConnectionStatus('connecting');
-      
       console.log('🔄 Fetching service health data from database...');
-      const startTime = Date.now();
-      const data = await fetchServiceHealth();
-      const fetchTime = Date.now() - startTime;
-      
+      const startTime=Date.now();
+      const data=await fetchServiceHealth();
+      const fetchTime=Date.now() - startTime;
       console.log(`✅ Successfully fetched data in ${fetchTime}ms`);
-      
       setServices(data.services);
       setResolvedAlerts(data.resolvedAlerts || []);
       setLastUpdated(data.lastUpdated);
       setMonitoringStatus(data.monitoringStatus);
       setConnectionStatus('connected');
       setError(null);
-      
       // Log what we found
-      const totalAlerts = data.services.reduce((sum, service) => sum + service.alerts.length, 0);
+      const totalAlerts=data.services.reduce((sum,service)=> sum + service.alerts.length,0);
       console.log(`📊 Found ${totalAlerts} active alerts across ${data.services.length} services`);
       console.log(`📊 Found ${data.resolvedAlerts.length} resolved alerts`);
-      
-      if (data.monitoringStatus.status === 'active') {
+      if (data.monitoringStatus.status==='active') {
         console.log('✅ Real-time monitoring is active');
       } else {
         console.log('⚠️ Real-time monitoring is not active');
       }
-      
     } catch (err) {
-      console.error('❌ Failed to load service health:', err);
+      console.error('❌ Failed to load service health:',err);
       setError(`Database connection failed: ${err.message}`);
       setConnectionStatus('disconnected');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  },[]);
 
-  const loadMonitoringStatus = useCallback(async () => {
+  const loadMonitoringStatus=useCallback(async ()=> {
     try {
-      const status = await getMonitoringStatus();
+      const status=await getMonitoringStatus();
       setMonitoringStatus(status);
     } catch (err) {
-      console.error('Failed to get monitoring status:', err);
+      console.error('Failed to get monitoring status:',err);
     }
-  }, []);
+  },[]);
 
-  const handleStartMonitoring = useCallback(() => {
+  const handleStartMonitoring=useCallback(()=> {
     console.log('🚀 Starting real-time monitoring...');
-    const status = startRealTimeMonitoring();
-    setMonitoringStatus(prev => ({
+    const status=startRealTimeMonitoring();
+    setMonitoringStatus(prev=> ({
       ...prev,
       status: 'active',
       isActive: true,
       message: 'Real-time monitoring started - polling Microsoft services every 60 seconds'
     }));
-    
     // Refresh data after starting monitoring
-    setTimeout(() => {
+    setTimeout(()=> {
       loadServiceHealth();
-    }, 2000);
-  }, [loadServiceHealth]);
+    },2000);
+  },[loadServiceHealth]);
 
   // Load initial data
-  useEffect(() => {
-    const initializeDashboard = async () => {
+  useEffect(()=> {
+    const initializeDashboard=async ()=> {
       // Load initial data
       await loadServiceHealth();
       await loadMonitoringStatus();
     };
-
     initializeDashboard();
-
     // Auto-refresh every 30 seconds (data comes from database now)
-    const dataInterval = setInterval(loadServiceHealth, 30000);
-    
+    const dataInterval=setInterval(loadServiceHealth,30000);
     // Check monitoring status every 2 minutes
-    const statusInterval = setInterval(loadMonitoringStatus, 120000);
-
-    return () => {
+    const statusInterval=setInterval(loadMonitoringStatus,120000);
+    return ()=> {
       clearInterval(dataInterval);
       clearInterval(statusInterval);
     };
-  }, [loadServiceHealth, loadMonitoringStatus]);
+  },[loadServiceHealth,loadMonitoringStatus]);
 
   // Calculate totals
-  const totalAlerts = services.reduce((sum, service) => sum + (service.alerts?.length || 0), 0);
-  const criticalAlerts = services.reduce(
-    (sum, service) => sum + (service.alerts?.filter(alert => ['high', 'critical'].includes(alert.severity))?.length || 0),
-    0
+  const totalAlerts=services.reduce((sum,service)=> sum + (service.alerts?.length || 0),0);
+  const criticalAlerts=services.reduce(
+    (sum,service)=> sum + (service.alerts?.filter(alert=> ['high','critical'].includes(alert.severity))?.length || 0),0
   );
 
-  const getConnectionStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected': return 'text-green-600';
-      case 'connecting': return 'text-blue-600';
-      case 'disconnected': return 'text-red-600';
-      default: return 'text-gray-600';
-    }
-  };
-
-  const getConnectionStatusIcon = () => {
-    switch (connectionStatus) {
-      case 'connected': return FiDatabase;
-      case 'connecting': return FiRefreshCw;
-      case 'disconnected': return FiAlertTriangle;
-      default: return FiDatabase;
-    }
-  };
-
-  if (loading && services.length === 0) {
+  if (loading && services.length===0) {
     return <LoadingSpinner />;
   }
 
@@ -151,67 +121,14 @@ const Dashboard = ({ user, onUserChange }) => {
         loading={refreshing}
         user={user}
       />
-
       <main className="container mx-auto px-4 py-8">
         {/* Monitoring Status */}
         {monitoringStatus && (
-          <MonitoringStatus status={monitoringStatus} className="mb-6" />
+          <MonitoringStatus
+            status={monitoringStatus}
+            className="mb-6"
+          />
         )}
-
-        {/* Database Connection Status */}
-        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <SafeIcon 
-                  icon={getConnectionStatusIcon()} 
-                  className={`${connectionStatus === 'connecting' ? 'animate-spin' : ''} ${getConnectionStatusColor()}`}
-                />
-                <span className={`text-sm font-medium ${getConnectionStatusColor()}`}>
-                  {connectionStatus === 'connected' && 'Database Connected'}
-                  {connectionStatus === 'connecting' && 'Connecting to Database...'}
-                  {connectionStatus === 'disconnected' && 'Database Connection Failed'}
-                </span>
-              </div>
-              <div className="text-sm text-gray-600">
-                {lastUpdated ? `Updated ${formatDistanceToNow(lastUpdated)} ago` : 'No data available'}
-              </div>
-              {monitoringStatus && (
-                <div className="flex items-center gap-2">
-                  <SafeIcon 
-                    icon={monitoringStatus.status === 'active' ? FiActivity : FiPlay} 
-                    className={monitoringStatus.status === 'active' ? 'text-green-600' : 'text-yellow-600'}
-                  />
-                  <span className={`text-xs font-medium ${monitoringStatus.status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {monitoringStatus.status === 'active' ? 'Real-time Monitoring Active' : 'Monitoring Inactive'}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-xs text-gray-500">
-                Auto-refresh: 30sec | Monitoring: 60sec
-              </div>
-              {monitoringStatus && monitoringStatus.status !== 'active' && (
-                <button
-                  onClick={handleStartMonitoring}
-                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
-                >
-                  <SafeIcon icon={FiPlay} />
-                  <span>Start Monitoring</span>
-                </button>
-              )}
-              <button
-                onClick={loadServiceHealth}
-                disabled={refreshing}
-                className="px-4 py-2 bg-microsoft-blue text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                <SafeIcon icon={FiRefreshCw} className={refreshing ? 'animate-spin' : ''} />
-                <span>{refreshing ? 'Refreshing...' : 'Refresh Now'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Error Message */}
         {error && (
@@ -230,7 +147,7 @@ const Dashboard = ({ user, onUserChange }) => {
         )}
 
         {/* Connection Required Message */}
-        {connectionStatus === 'disconnected' && (
+        {connectionStatus==='disconnected' && (
           <div className="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <SafeIcon icon={FiDatabase} className="text-blue-600 text-2xl" />
@@ -250,7 +167,7 @@ const Dashboard = ({ user, onUserChange }) => {
         )}
 
         {/* Monitoring Not Started Message */}
-        {connectionStatus === 'connected' && monitoringStatus && monitoringStatus.status !== 'active' && (
+        {connectionStatus==='connected' && monitoringStatus && monitoringStatus.status !=='active' && (
           <div className="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
             <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <SafeIcon icon={FiPlay} className="text-yellow-600 text-2xl" />
@@ -272,9 +189,9 @@ const Dashboard = ({ user, onUserChange }) => {
         )}
 
         {/* Service Cards */}
-        {connectionStatus === 'connected' && (
+        {connectionStatus==='connected' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {services.map((service) => (
+            {services.map((service)=> (
               <ServiceCard
                 key={service.id}
                 service={service}
@@ -285,7 +202,7 @@ const Dashboard = ({ user, onUserChange }) => {
         )}
 
         {/* All Clear Message */}
-        {!loading && !error && totalAlerts === 0 && connectionStatus === 'connected' && monitoringStatus?.status === 'active' && (
+        {!loading && !error && totalAlerts===0 && connectionStatus==='connected' && monitoringStatus?.status==='active' && (
           <div className="text-center mt-8 p-8 bg-white rounded-lg border border-gray-200">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">✅</span>
@@ -321,7 +238,7 @@ const Dashboard = ({ user, onUserChange }) => {
         {selectedAlert && (
           <AlertModal
             alert={selectedAlert}
-            onClose={() => setSelectedAlert(null)}
+            onClose={()=> setSelectedAlert(null)}
           />
         )}
       </AnimatePresence>
