@@ -1,12 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Project credentials - will be auto-injected during deployment
-const SUPABASE_URL = 'https://your-project-id.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key';
+// Project credentials - now properly configured
+const SUPABASE_URL = 'https://ceqlnmraiismxsprgrio.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNlcWxubXJhaWlzbXhzcHJncmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNzExMjEsImV4cCI6MjA3MDk0NzEyMX0.V0vWLuDZ-1IKHjfBwwTDBcQctYieebl3fdLn7R3-a3A';
 
-if (SUPABASE_URL === 'https://your-project-id.supabase.co' || SUPABASE_ANON_KEY === 'your-anon-key') {
-  console.warn('Supabase not configured - using demo mode');
+// Check if Supabase is properly configured
+const isConfigured = SUPABASE_URL !== 'https://your-project-id.supabase.co' && SUPABASE_ANON_KEY !== 'your-anon-key';
+
+if (!isConfigured) {
+  console.error('❌ Supabase not configured - Please connect your Supabase project');
+  throw new Error('Supabase credentials not configured. Please connect your Supabase project.');
 }
+
+console.log('✅ Supabase configured successfully');
 
 // Initialize the Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -19,6 +25,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // Authentication helpers
 export const signUp = async (email, password) => {
   console.log('Sign up called with:', email);
+  
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -33,6 +40,7 @@ export const signUp = async (email, password) => {
 
 export const signIn = async (email, password) => {
   console.log('Sign in called with:', email);
+  
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -47,6 +55,7 @@ export const signIn = async (email, password) => {
 
 export const signOut = async () => {
   console.log('Sign out called');
+  
   try {
     const { error } = await supabase.auth.signOut();
     return { error };
@@ -58,6 +67,7 @@ export const signOut = async () => {
 
 export const getCurrentUser = async () => {
   console.log('Get current user called');
+  
   try {
     const { data, error } = await supabase.auth.getUser();
     return { user: data?.user || null, error };
@@ -74,11 +84,7 @@ export const insertServiceAlert = async (alertData) => {
   try {
     const { data, error } = await supabase
       .from('service_alerts_ms2024')
-      .upsert([alertData], { 
-        onConflict: 'external_id',
-        ignoreDuplicates: false 
-      });
-    
+      .upsert([alertData], { onConflict: 'external_id', ignoreDuplicates: false });
     return { data, error };
   } catch (err) {
     console.error('Error inserting service alert:', err);
@@ -92,12 +98,8 @@ export const updateServiceAlert = async (externalId, updateData) => {
   try {
     const { data, error } = await supabase
       .from('service_alerts_ms2024')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
+      .update({ ...updateData, updated_at: new Date().toISOString() })
       .eq('external_id', externalId);
-    
     return { data, error };
   } catch (err) {
     console.error('Error updating service alert:', err);
@@ -114,7 +116,6 @@ export const getActiveAlerts = async () => {
       .select('*')
       .in('status', ['investigating', 'monitoring', 'identified'])
       .order('created_at', { ascending: false });
-    
     return { data, error };
   } catch (err) {
     console.error('Error fetching active alerts:', err);
@@ -128,14 +129,13 @@ export const getResolvedAlerts = async (dayLimit = 30) => {
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - dayLimit);
-    
+
     const { data, error } = await supabase
       .from('service_alerts_ms2024')
       .select('*')
       .eq('status', 'resolved')
       .gte('resolved_at', cutoffDate.toISOString())
       .order('resolved_at', { ascending: false });
-    
     return { data, error };
   } catch (err) {
     console.error('Error fetching resolved alerts:', err);
@@ -152,7 +152,6 @@ export const getAllAlerts = async (limit = 1000, offset = 0) => {
       .select('*')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
-    
     return { data, error };
   } catch (err) {
     console.error('Error fetching all alerts:', err);
@@ -167,23 +166,22 @@ export const searchAlerts = async (searchTerm, startDate = null, endDate = null)
     let query = supabase
       .from('service_alerts_ms2024')
       .select('*');
-    
+
     if (searchTerm) {
       query = query.or(`title.ilike.%${searchTerm}%,impact.ilike.%${searchTerm}%,affected_services.cs.{${searchTerm}}`);
     }
-    
+
     if (startDate) {
       query = query.gte('created_at', startDate);
     }
-    
+
     if (endDate) {
       query = query.lte('created_at', endDate);
     }
-    
+
     const { data, error } = await query
       .order('created_at', { ascending: false })
       .limit(500);
-    
     return { data, error };
   } catch (err) {
     console.error('Error searching alerts:', err);
@@ -199,7 +197,6 @@ export const recordMonitoringRun = async (runData) => {
     const { data, error } = await supabase
       .from('monitoring_runs_ms2024')
       .insert([runData]);
-    
     return { data, error };
   } catch (err) {
     console.error('Error recording monitoring run:', err);
@@ -217,7 +214,6 @@ export const getLastMonitoringRun = async () => {
       .order('run_at', { ascending: false })
       .limit(1)
       .single();
-    
     return { data, error };
   } catch (err) {
     console.error('Error getting last monitoring run:', err);
@@ -233,15 +229,14 @@ export const addComment = async (alertId, content, userId, username, isAnonymous
     const { data, error } = await supabase
       .from('alert_comments_ms2024')
       .insert([
-        { 
-          alert_id: alertId, 
-          content, 
-          user_id: isAnonymous ? null : userId, 
+        {
+          alert_id: alertId,
+          content,
+          user_id: isAnonymous ? null : userId,
           username: isAnonymous ? 'Anonymous' : username,
           is_anonymous: isAnonymous
         }
       ]);
-    
     return { data, error };
   } catch (err) {
     console.error('Error adding comment:', err);
@@ -256,16 +251,15 @@ export const addCommentReply = async (parentId, alertId, content, userId, userna
     const { data, error } = await supabase
       .from('alert_comments_ms2024')
       .insert([
-        { 
-          alert_id: alertId, 
-          content, 
-          user_id: isAnonymous ? null : userId, 
+        {
+          alert_id: alertId,
+          content,
+          user_id: isAnonymous ? null : userId,
           username: isAnonymous ? 'Anonymous' : username,
           is_anonymous: isAnonymous,
           parent_id: parentId
         }
       ]);
-    
     return { data, error };
   } catch (err) {
     console.error('Error adding comment reply:', err);
@@ -282,19 +276,11 @@ export const getComments = async (alertId) => {
       .select('*')
       .eq('alert_id', alertId)
       .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    if (data && data.length > 0) {
-      return { data, error: null };
-    }
-    
-    // Return mock comments for demo if no real data
-    return { data: generateMockComments(alertId), error: null };
-    
+
+    return { data, error };
   } catch (err) {
     console.error('Error fetching comments:', err);
-    return { data: generateMockComments(alertId), error: null };
+    return { data: [], error: err };
   }
 };
 
@@ -322,7 +308,6 @@ export const voteComment = async (commentId, userId, voteType) => {
           .from('comment_votes_ms2024')
           .delete()
           .eq('id', existingVote.id);
-        
         return { error };
       } else {
         // Update to new vote type
@@ -330,18 +315,20 @@ export const voteComment = async (commentId, userId, voteType) => {
           .from('comment_votes_ms2024')
           .update({ vote_type: voteType })
           .eq('id', existingVote.id);
-        
         return { error };
       }
-    } 
+    }
     // Otherwise create a new vote
     else {
       const { error } = await supabase
         .from('comment_votes_ms2024')
         .insert([
-          { comment_id: commentId, user_id: userId, vote_type: voteType }
+          {
+            comment_id: commentId,
+            user_id: userId,
+            vote_type: voteType
+          }
         ]);
-      
       return { error };
     }
   } catch (err) {
@@ -358,7 +345,6 @@ export const getCommentVotes = async (commentId) => {
       .from('comment_votes_ms2024')
       .select('*')
       .eq('comment_id', commentId);
-    
     return { data, error };
   } catch (err) {
     console.error('Error fetching comment votes:', err);
@@ -386,15 +372,16 @@ export const subscribeToAlerts = async (userId, regions) => {
         .from('alert_subscriptions_ms2024')
         .update({ regions })
         .eq('user_id', userId);
-      
       return { data, error };
     } else {
       const { data, error } = await supabase
         .from('alert_subscriptions_ms2024')
         .insert([
-          { user_id: userId, regions }
+          {
+            user_id: userId,
+            regions
+          }
         ]);
-      
       return { data, error };
     }
   } catch (err) {
@@ -412,7 +399,6 @@ export const getAlertSubscriptions = async (userId) => {
       .select('*')
       .eq('user_id', userId)
       .single();
-    
     return { data, error };
   } catch (err) {
     console.error('Error fetching alert subscriptions:', err);
@@ -440,15 +426,16 @@ export const updateUserProfile = async (userId, profileData) => {
         .from('user_profiles_ms2024')
         .update(profileData)
         .eq('user_id', userId);
-      
       return { data, error };
     } else {
       const { data, error } = await supabase
         .from('user_profiles_ms2024')
         .insert([
-          { user_id: userId, ...profileData }
+          {
+            user_id: userId,
+            ...profileData
+          }
         ]);
-      
       return { data, error };
     }
   } catch (err) {
@@ -466,46 +453,11 @@ export const getUserProfile = async (userId) => {
       .select('*')
       .eq('user_id', userId)
       .single();
-    
     return { data, error };
   } catch (err) {
     console.error('Error fetching user profile:', err);
     return { data: null, error: err };
   }
 };
-
-// Helper function for mock comments (existing)
-function generateMockComments(alertId) {
-  const usernames = [
-    'TechAdmin', 'CloudExpert', 'SystemEngineer',
-    'DevOpsGuru', 'NetworkSpecialist', 'AzureArchitect'
-  ];
-  
-  const commentTexts = [
-    "We're experiencing this issue in our environment as well.",
-    "Our team has confirmed this is affecting production workloads.",
-    "Has anyone found a workaround for this issue yet?"
-  ];
-  
-  const commentCount = Math.floor(Math.random() * 4) + 2;
-  const comments = [];
-  const now = Date.now();
-  
-  for (let i = 0; i < commentCount; i++) {
-    const timeOffset = Math.floor(Math.random() * 24) * 3600000;
-    comments.push({
-      id: `mock-comment-${alertId}-${i}`,
-      alert_id: alertId,
-      user_id: null,
-      username: usernames[Math.floor(Math.random() * usernames.length)],
-      content: commentTexts[Math.floor(Math.random() * commentTexts.length)],
-      is_anonymous: Math.random() > 0.7,
-      created_at: new Date(now - timeOffset).toISOString(),
-      parent_id: null
-    });
-  }
-  
-  return comments;
-}
 
 export default supabase;

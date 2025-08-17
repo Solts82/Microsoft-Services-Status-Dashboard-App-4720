@@ -1,11 +1,20 @@
 import { getActiveAlerts, getResolvedAlerts, getLastMonitoringRun } from '../lib/supabase.js';
+import { realTimeMonitoring } from './realTimeMonitoring.js';
 
-// This service now fetches data from our database instead of directly from Microsoft APIs
+// This service fetches data from our Supabase database and manages real-time monitoring
 export const fetchServiceHealth = async () => {
   console.log('🔄 Fetching service health data from database...');
   
   try {
     const startTime = Date.now();
+    
+    // Start real-time monitoring if not already running
+    if (!realTimeMonitoring.getStatus().isRunning) {
+      console.log('🚀 Starting real-time monitoring...');
+      realTimeMonitoring.start();
+    }
+    
+    console.log('📡 Fetching from Supabase database...');
     
     // Fetch data from database
     const [activeAlertsResult, resolvedAlertsResult, lastRunResult] = await Promise.allSettled([
@@ -13,11 +22,11 @@ export const fetchServiceHealth = async () => {
       getResolvedAlerts(30), // Last 30 days
       getLastMonitoringRun()
     ]);
-
+    
     const activeAlerts = activeAlertsResult.status === 'fulfilled' ? activeAlertsResult.value.data || [] : [];
     const resolvedAlerts = resolvedAlertsResult.status === 'fulfilled' ? resolvedAlertsResult.value.data || [] : [];
     const lastRun = lastRunResult.status === 'fulfilled' ? lastRunResult.value.data : null;
-
+    
     // Group alerts by service
     const services = [
       {
@@ -40,33 +49,55 @@ export const fetchServiceHealth = async () => {
         alerts: activeAlerts.filter(alert => alert.service_name === 'entra').map(transformAlert),
         status: getServiceStatus(activeAlerts.filter(alert => alert.service_name === 'entra')),
         lastChecked: lastRun?.run_at ? new Date(lastRun.run_at) : new Date()
+      },
+      {
+        id: 'github',
+        name: 'GitHub (Microsoft)',
+        alerts: activeAlerts.filter(alert => alert.service_name === 'github').map(transformAlert),
+        status: getServiceStatus(activeAlerts.filter(alert => alert.service_name === 'github')),
+        lastChecked: lastRun?.run_at ? new Date(lastRun.run_at) : new Date()
       }
     ];
-
+    
     const fetchTime = Date.now() - startTime;
-    console.log(`✅ Fetched data from database in ${fetchTime}ms`);
+    console.log(`✅ Fetched data in ${fetchTime}ms`);
     
     const totalActiveAlerts = activeAlerts.length;
     const totalResolvedAlerts = resolvedAlerts.length;
     
     console.log(`📊 Found ${totalActiveAlerts} active alerts and ${totalResolvedAlerts} resolved alerts`);
-
+    
+    // Get monitoring status
+    const monitoringStatus = realTimeMonitoring.getStatus();
+    
     return {
       services,
       resolvedAlerts: resolvedAlerts.map(transformAlert),
       lastUpdated: lastRun?.run_at ? new Date(lastRun.run_at) : new Date(),
       monitoringStatus: {
-        isActive: lastRun ? (Date.now() - new Date(lastRun.run_at).getTime() < 120000) : false, // Active if last run was within 2 minutes
-        lastRun: lastRun?.run_at ? new Date(lastRun.run_at) : null,
-        alertsFound: lastRun?.alerts_found || 0,
-        alertsUpdated: lastRun?.alerts_updated || 0,
-        alertsResolved: lastRun?.alerts_resolved || 0
+        status: monitoringStatus.isRunning ? 'active' : 'inactive',
+        isActive: monitoringStatus.isRunning,
+        lastRun: monitoringStatus.lastRun,
+        nextRun: monitoringStatus.nextRun,
+        message: monitoringStatus.isRunning 
+          ? 'Real-time monitoring active (60-second intervals)' 
+          : 'Real-time monitoring stopped',
+        intervalSeconds: 60,
+        consecutiveErrors: monitoringStatus.consecutiveErrors,
+        lastRunStats: lastRun ? {
+          duration: lastRun.duration_ms,
+          alertsFound: lastRun.alerts_found,
+          alertsUpdated: lastRun.alerts_updated,
+          alertsResolved: lastRun.alerts_resolved,
+          errors: lastRun.errors || [],
+          status: lastRun.status
+        } : null
       }
     };
-
+    
   } catch (error) {
-    console.error('❌ Error fetching service health from database:', error);
-    throw new Error(`Failed to fetch service health data: ${error.message}`);
+    console.error('❌ Error fetching service health:', error);
+    throw error;
   }
 };
 
@@ -107,32 +138,37 @@ function getServiceStatus(alerts) {
 // Get monitoring service status
 export const getMonitoringStatus = async () => {
   try {
+    const monitoringStatus = realTimeMonitoring.getStatus();
     const { data: lastRun } = await getLastMonitoringRun();
     
-    if (!lastRun) {
+    if (!lastRun && !monitoringStatus.isRunning) {
       return {
-        status: 'unknown',
-        message: 'No monitoring runs recorded',
+        status: 'inactive',
+        message: 'Real-time monitoring not started. Click refresh to begin monitoring.',
         lastRun: null
       };
     }
-
-    const timeSinceLastRun = Date.now() - new Date(lastRun.run_at).getTime();
-    const isActive = timeSinceLastRun < 120000; // 2 minutes
+    
+    const timeSinceLastRun = lastRun ? Date.now() - new Date(lastRun.run_at).getTime() : null;
+    const isActive = monitoringStatus.isRunning;
     
     return {
       status: isActive ? 'active' : 'inactive',
-      message: isActive ? 'Monitoring service is active' : 'Monitoring service appears inactive',
-      lastRun: new Date(lastRun.run_at),
+      message: isActive 
+        ? 'Real-time monitoring active - polling Microsoft services every 60 seconds'
+        : 'Real-time monitoring stopped',
+      lastRun: lastRun ? new Date(lastRun.run_at) : monitoringStatus.lastRun,
       timeSinceLastRun,
-      lastRunStats: {
+      intervalSeconds: 60,
+      consecutiveErrors: monitoringStatus.consecutiveErrors,
+      lastRunStats: lastRun ? {
         duration: lastRun.duration_ms,
         alertsFound: lastRun.alerts_found,
         alertsUpdated: lastRun.alerts_updated,
         alertsResolved: lastRun.alerts_resolved,
         errors: lastRun.errors || [],
         status: lastRun.status
-      }
+      } : null
     };
   } catch (error) {
     console.error('Error getting monitoring status:', error);
@@ -142,6 +178,18 @@ export const getMonitoringStatus = async () => {
       lastRun: null
     };
   }
+};
+
+// Start real-time monitoring
+export const startRealTimeMonitoring = () => {
+  realTimeMonitoring.start();
+  return realTimeMonitoring.getStatus();
+};
+
+// Stop real-time monitoring
+export const stopRealTimeMonitoring = () => {
+  realTimeMonitoring.stop();
+  return realTimeMonitoring.getStatus();
 };
 
 // Search alerts in database

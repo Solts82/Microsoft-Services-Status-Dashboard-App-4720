@@ -8,11 +8,10 @@ import AlertModal from './AlertModal';
 import ResolvedAlertsSection from './ResolvedAlertsSection';
 import MonitoringStatus from './MonitoringStatus';
 import LoadingSpinner from './LoadingSpinner';
-import { fetchServiceHealth, getMonitoringStatus } from '../services/microsoftApi';
-import { monitoringWorker } from '../services/monitoringWorker';
+import { fetchServiceHealth, getMonitoringStatus, startRealTimeMonitoring } from '../services/microsoftApi';
 import { formatDistanceToNow } from 'date-fns';
 
-const { FiRefreshCw, FiAlertTriangle, FiWifi, FiWifiOff, FiActivity } = FiIcons;
+const { FiRefreshCw, FiAlertTriangle, FiWifi, FiWifiOff, FiDatabase, FiPlay, FiActivity } = FiIcons;
 
 const Dashboard = ({ user, onUserChange }) => {
   const [services, setServices] = useState([]);
@@ -33,10 +32,9 @@ const Dashboard = ({ user, onUserChange }) => {
       
       console.log('🔄 Fetching service health data from database...');
       const startTime = Date.now();
-      
       const data = await fetchServiceHealth();
-      
       const fetchTime = Date.now() - startTime;
+      
       console.log(`✅ Successfully fetched data in ${fetchTime}ms`);
       
       setServices(data.services);
@@ -51,9 +49,15 @@ const Dashboard = ({ user, onUserChange }) => {
       console.log(`📊 Found ${totalAlerts} active alerts across ${data.services.length} services`);
       console.log(`📊 Found ${data.resolvedAlerts.length} resolved alerts`);
       
+      if (data.monitoringStatus.status === 'active') {
+        console.log('✅ Real-time monitoring is active');
+      } else {
+        console.log('⚠️ Real-time monitoring is not active');
+      }
+      
     } catch (err) {
       console.error('❌ Failed to load service health:', err);
-      setError(`Failed to fetch service health data: ${err.message}`);
+      setError(`Database connection failed: ${err.message}`);
       setConnectionStatus('disconnected');
     } finally {
       setLoading(false);
@@ -70,34 +74,41 @@ const Dashboard = ({ user, onUserChange }) => {
     }
   }, []);
 
-  // Load initial data and start background monitoring
+  const handleStartMonitoring = useCallback(() => {
+    console.log('🚀 Starting real-time monitoring...');
+    const status = startRealTimeMonitoring();
+    setMonitoringStatus(prev => ({
+      ...prev,
+      status: 'active',
+      isActive: true,
+      message: 'Real-time monitoring started - polling Microsoft services every 60 seconds'
+    }));
+    
+    // Refresh data after starting monitoring
+    setTimeout(() => {
+      loadServiceHealth();
+    }, 2000);
+  }, [loadServiceHealth]);
+
+  // Load initial data
   useEffect(() => {
     const initializeDashboard = async () => {
-      // Start background monitoring service
-      try {
-        await monitoringWorker.start();
-        console.log('✅ Background monitoring initialized');
-      } catch (err) {
-        console.warn('⚠️ Background monitoring failed to start:', err);
-      }
-      
       // Load initial data
       await loadServiceHealth();
       await loadMonitoringStatus();
     };
 
     initializeDashboard();
-    
+
     // Auto-refresh every 30 seconds (data comes from database now)
     const dataInterval = setInterval(loadServiceHealth, 30000);
     
     // Check monitoring status every 2 minutes
     const statusInterval = setInterval(loadMonitoringStatus, 120000);
-    
+
     return () => {
       clearInterval(dataInterval);
       clearInterval(statusInterval);
-      // Don't stop monitoring worker on unmount - let it run in background
     };
   }, [loadServiceHealth, loadMonitoringStatus]);
 
@@ -119,10 +130,10 @@ const Dashboard = ({ user, onUserChange }) => {
 
   const getConnectionStatusIcon = () => {
     switch (connectionStatus) {
-      case 'connected': return FiWifi;
+      case 'connected': return FiDatabase;
       case 'connecting': return FiRefreshCw;
-      case 'disconnected': return FiWifiOff;
-      default: return FiWifi;
+      case 'disconnected': return FiAlertTriangle;
+      default: return FiDatabase;
     }
   };
 
@@ -132,7 +143,7 @@ const Dashboard = ({ user, onUserChange }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <Header 
+      <Header
         totalAlerts={totalAlerts}
         criticalAlerts={criticalAlerts}
         lastUpdated={lastUpdated}
@@ -147,30 +158,49 @@ const Dashboard = ({ user, onUserChange }) => {
           <MonitoringStatus status={monitoringStatus} className="mb-6" />
         )}
 
-        {/* Live Status Bar */}
+        {/* Database Connection Status */}
         <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <SafeIcon 
                   icon={getConnectionStatusIcon()} 
-                  className={`${connectionStatus === 'connecting' ? 'animate-spin' : ''} ${getConnectionStatusColor()}`} 
+                  className={`${connectionStatus === 'connecting' ? 'animate-spin' : ''} ${getConnectionStatusColor()}`}
                 />
                 <span className={`text-sm font-medium ${getConnectionStatusColor()}`}>
                   {connectionStatus === 'connected' && 'Database Connected'}
-                  {connectionStatus === 'connecting' && 'Loading Data...'}
-                  {connectionStatus === 'disconnected' && 'Connection Failed'}
+                  {connectionStatus === 'connecting' && 'Connecting to Database...'}
+                  {connectionStatus === 'disconnected' && 'Database Connection Failed'}
                 </span>
               </div>
               <div className="text-sm text-gray-600">
-                {lastUpdated ? `Updated ${formatDistanceToNow(lastUpdated)} ago` : 'Loading...'}
+                {lastUpdated ? `Updated ${formatDistanceToNow(lastUpdated)} ago` : 'No data available'}
               </div>
+              {monitoringStatus && (
+                <div className="flex items-center gap-2">
+                  <SafeIcon 
+                    icon={monitoringStatus.status === 'active' ? FiActivity : FiPlay} 
+                    className={monitoringStatus.status === 'active' ? 'text-green-600' : 'text-yellow-600'}
+                  />
+                  <span className={`text-xs font-medium ${monitoringStatus.status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {monitoringStatus.status === 'active' ? 'Real-time Monitoring Active' : 'Monitoring Inactive'}
+                  </span>
+                </div>
+              )}
             </div>
-            
             <div className="flex items-center gap-3">
               <div className="text-xs text-gray-500">
-                Auto-refresh: 30sec
+                Auto-refresh: 30sec | Monitoring: 60sec
               </div>
+              {monitoringStatus && monitoringStatus.status !== 'active' && (
+                <button
+                  onClick={handleStartMonitoring}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
+                >
+                  <SafeIcon icon={FiPlay} />
+                  <span>Start Monitoring</span>
+                </button>
+              )}
               <button
                 onClick={loadServiceHealth}
                 disabled={refreshing}
@@ -192,37 +222,70 @@ const Dashboard = ({ user, onUserChange }) => {
                 <p className="text-red-700 font-medium">Database Connection Error</p>
                 <p className="text-red-600 text-sm mt-1">{error}</p>
                 <p className="text-red-500 text-xs mt-2">
-                  The monitoring system continuously checks Microsoft services and stores data in the database.
+                  Please ensure your Supabase project is properly connected and the database tables exist.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Data Source Info */}
-        <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center gap-2 text-blue-800">
-            <SafeIcon icon={FiActivity} className="text-blue-600" />
-            <span className="text-sm font-medium">Data Source:</span>
-            <span className="text-xs">
-              Continuous monitoring system • Database-stored alerts • Real-time updates every minute
-            </span>
+        {/* Connection Required Message */}
+        {connectionStatus === 'disconnected' && (
+          <div className="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <SafeIcon icon={FiDatabase} className="text-blue-600 text-2xl" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Database Connection Required
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Please connect your Supabase project to view Microsoft service health data.
+            </p>
+            <div className="text-sm text-gray-500">
+              <p>1. Connect your Supabase project in the settings</p>
+              <p>2. Run the database schema to create the required tables</p>
+              <p>3. Click "Start Monitoring" to begin real-time polling</p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Monitoring Not Started Message */}
+        {connectionStatus === 'connected' && monitoringStatus && monitoringStatus.status !== 'active' && (
+          <div className="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <SafeIcon icon={FiPlay} className="text-yellow-600 text-2xl" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Start Real-Time Monitoring
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Click "Start Monitoring" to begin polling Microsoft services every 60 seconds for new alerts.
+            </p>
+            <button
+              onClick={handleStartMonitoring}
+              className="px-6 py-3 bg-microsoft-blue text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 mx-auto"
+            >
+              <SafeIcon icon={FiPlay} />
+              <span>Start Real-Time Monitoring</span>
+            </button>
+          </div>
+        )}
 
         {/* Service Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onAlertClick={setSelectedAlert}
-            />
-          ))}
-        </div>
+        {connectionStatus === 'connected' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {services.map((service) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                onAlertClick={setSelectedAlert}
+              />
+            ))}
+          </div>
+        )}
 
         {/* All Clear Message */}
-        {!loading && !error && totalAlerts === 0 && connectionStatus === 'connected' && (
+        {!loading && !error && totalAlerts === 0 && connectionStatus === 'connected' && monitoringStatus?.status === 'active' && (
           <div className="text-center mt-8 p-8 bg-white rounded-lg border border-gray-200">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">✅</span>
@@ -234,7 +297,10 @@ const Dashboard = ({ user, onUserChange }) => {
               No active incidents or service issues detected across Microsoft services.
             </p>
             <div className="text-xs text-gray-500">
-              Last monitored: {lastUpdated ? formatDistanceToNow(lastUpdated) : 'Just now'} ago
+              Last monitored: {lastUpdated ? formatDistanceToNow(lastUpdated) : 'Never'} ago
+            </div>
+            <div className="text-xs text-green-600 mt-1">
+              Real-time monitoring active • Checking every 60 seconds
             </div>
           </div>
         )}
@@ -242,27 +308,10 @@ const Dashboard = ({ user, onUserChange }) => {
         {/* Resolved Alerts Section */}
         {resolvedAlerts && resolvedAlerts.length > 0 && (
           <div className="mt-8">
-            <ResolvedAlertsSection 
+            <ResolvedAlertsSection
               resolvedAlerts={resolvedAlerts}
               onAlertClick={setSelectedAlert}
             />
-          </div>
-        )}
-
-        {/* Debug Info (only in development) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h4 className="text-sm font-medium text-gray-800 mb-2">Debug Information</h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>Services loaded: {services.length}</div>
-              <div>Total alerts: {totalAlerts}</div>
-              <div>Critical alerts: {criticalAlerts}</div>
-              <div>Resolved alerts: {resolvedAlerts.length}</div>
-              <div>Connection status: {connectionStatus}</div>
-              <div>Last update: {lastUpdated?.toISOString()}</div>
-              <div>Monitoring active: {monitoringStatus?.isActive ? 'Yes' : 'No'}</div>
-              <div>Last monitoring run: {monitoringStatus?.lastRun?.toISOString()}</div>
-            </div>
           </div>
         )}
       </main>
